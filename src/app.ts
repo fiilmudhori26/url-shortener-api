@@ -21,6 +21,31 @@ export const buildApp = async () => {
     timeWindow: '1 minute',
   });
 
+  // Register Swagger
+  await app.register(require('@fastify/swagger'), {
+    openapi: {
+      info: {
+        title: 'URL Shortener API',
+        description: 'REST API for shortening URLs built with Fastify, Prisma, TypeScript and MySQL.',
+        version: '1.0.0',
+      },
+      servers: [
+        {
+          url: 'http://localhost:3000',
+          description: 'Local server',
+        },
+      ],
+    },
+  });
+
+  await app.register(require('@fastify/swagger-ui'), {
+    routePrefix: '/docs',
+    uiConfig: {
+      docExpansion: 'list',
+      deepLinking: false,
+    },
+  });
+
   // Health check route
   app.get('/health', async () => {
     return { status: 'ok' };
