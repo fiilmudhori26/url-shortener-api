@@ -1,6 +1,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { UrlService } from './url.service';
-import { createUrlSchema, getUrlsQuerySchema, urlParamsSchema } from './url.schema';
+import { createUrlSchema, getUrlsQuerySchema, urlParamsSchema, updateUrlSchema } from './url.schema';
 import { ZodError } from 'zod';
 
 export class UrlController {
@@ -142,11 +142,176 @@ export class UrlController {
     }
   }
 
-  redirectUrl = async (request: FastifyRequest, reply: FastifyReply) => {}
+  redirectUrl = async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const { shortCode } = request.params as { shortCode: string };
+      if (!shortCode) {
+         return reply.code(400).send({ success: false, message: 'shortCode tidak valid' });
+      }
 
-  updateUrl = async (request: FastifyRequest, reply: FastifyReply) => {}
+      const originalUrl = await this.urlService.getUrlByShortCode(shortCode);
 
-  deleteUrl = async (request: FastifyRequest, reply: FastifyReply) => {}
+      return reply.redirect(302, originalUrl);
+    } catch (error) {
+      if (error instanceof Error && error.message === 'URL tidak ditemukan') {
+        return reply.code(404).send({
+          success: false,
+          message: error.message,
+        });
+      }
 
-  getUrlStats = async (request: FastifyRequest, reply: FastifyReply) => {}
+      request.log.error(error);
+      return reply.code(500).send({
+        success: false,
+        message: 'Terjadi kesalahan pada server',
+      });
+    }
+  }
+
+  updateUrl = async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      if (!request.body || Object.keys(request.body as object).length === 0) {
+        return reply.code(400).send({
+          success: false,
+          message: 'Request body kosong',
+        });
+      }
+
+      const { id } = urlParamsSchema.parse(request.params);
+      const parsedBody = updateUrlSchema.parse(request.body);
+
+      const url = await this.urlService.updateUrl(id, parsedBody);
+
+      return reply.code(200).send({
+        success: true,
+        message: 'URL berhasil diperbarui',
+        data: {
+          id: url.id,
+          originalUrl: url.originalUrl,
+          shortCode: url.shortCode,
+          clickCount: url.clickCount,
+          createdAt: url.createdAt,
+          updatedAt: url.updatedAt,
+        }
+      });
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return reply.code(400).send({
+          success: false,
+          message: 'Validasi gagal',
+          errors: error.errors.map(err => ({
+            field: err.path.join('.'),
+            message: err.message
+          })),
+        });
+      }
+
+      if (error instanceof Error) {
+        if (error.message === 'Data URL tidak ditemukan') {
+          return reply.code(404).send({
+            success: false,
+            message: error.message,
+          });
+        }
+        if (error.message === 'Custom alias sudah digunakan') {
+          return reply.code(409).send({
+            success: false,
+            message: error.message,
+          });
+        }
+      }
+
+      request.log.error(error);
+      return reply.code(500).send({
+        success: false,
+        message: 'Terjadi kesalahan pada server',
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  }
+
+  deleteUrl = async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const { id } = urlParamsSchema.parse(request.params);
+
+      await this.urlService.deleteUrl(id);
+
+      return reply.code(200).send({
+        success: true,
+        message: 'URL berhasil dihapus',
+      });
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return reply.code(400).send({
+          success: false,
+          message: 'Validasi parameter gagal',
+          errors: error.errors.map(err => ({
+            field: err.path.join('.'),
+            message: err.message
+          })),
+        });
+      }
+
+      if (error instanceof Error && error.message === 'Data URL tidak ditemukan') {
+        return reply.code(404).send({
+          success: false,
+          message: error.message,
+        });
+      }
+
+      request.log.error(error);
+      return reply.code(500).send({
+        success: false,
+        message: 'Terjadi kesalahan pada server',
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  }
+
+  getUrlStats = async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const { id } = urlParamsSchema.parse(request.params);
+
+      const stats = await this.urlService.getUrlStats(id);
+
+      return reply.code(200).send({
+        success: true,
+        message: 'Statistik URL berhasil diambil',
+        data: {
+          id: stats.id,
+          originalUrl: stats.originalUrl,
+          shortCode: stats.shortCode,
+          clickCount: stats.clickCount,
+          createdAt: stats.createdAt,
+          updatedAt: stats.updatedAt,
+          isDeleted: stats.isDeleted,
+        }
+      });
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return reply.code(400).send({
+          success: false,
+          message: 'Validasi parameter gagal',
+          errors: error.errors.map(err => ({
+            field: err.path.join('.'),
+            message: err.message
+          })),
+        });
+      }
+
+      if (error instanceof Error && error.message === 'Data URL tidak ditemukan') {
+        return reply.code(404).send({
+          success: false,
+          message: error.message,
+        });
+      }
+
+      request.log.error(error);
+      return reply.code(500).send({
+        success: false,
+        message: 'Terjadi kesalahan pada server',
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  }
 }

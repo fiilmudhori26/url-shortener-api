@@ -41,9 +41,33 @@ export class UrlRepository {
     return this.prisma.url.findUnique({ where: { shortCode } });
   }
 
-  async update() {}
+  async update(id: string, data: Partial<{ originalUrl: string; shortCode: string }>): Promise<Url> {
+    return this.prisma.url.update({
+      where: { id },
+      data,
+    });
+  }
 
-  async softDelete() {}
+  async softDelete(id: string): Promise<void> {
+    await this.prisma.url.update({
+      where: { id },
+      data: { isDeleted: true },
+    });
+  }
 
-  async incrementClick() {}
+  async incrementClickCount(id: string): Promise<void> {
+    await this.prisma.url.update({
+      where: { id },
+      data: { clickCount: { increment: 1 } },
+    });
+  }
+
+  async getStats(id: string): Promise<Url | null> {
+    return this.prisma.url.findFirst({
+      where: {
+        id,
+        isDeleted: false,
+      },
+    });
+  }
 }

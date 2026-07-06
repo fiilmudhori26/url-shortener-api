@@ -2,7 +2,7 @@ import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
-import { urlRoutes } from './modules/url/url.routes';
+import { urlRoutes, redirectRoutes } from './modules/url/url.routes';
 
 export const buildApp = async () => {
   const app = Fastify({
@@ -28,6 +28,7 @@ export const buildApp = async () => {
 
   // Register Modules
   app.register(urlRoutes, { prefix: '/urls' });
+  app.register(redirectRoutes);
 
   return app;
 };

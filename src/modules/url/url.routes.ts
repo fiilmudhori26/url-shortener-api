@@ -18,9 +18,13 @@ export const urlRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) =>
   fastify.delete('/:id', controller.deleteUrl);
   fastify.get('/:id/stats', controller.getUrlStats);
   
-  // Note: Redirect endpoint (GET /:shortCode) will be registered at root level in app.ts,
-  // or we can register it here and prefix it differently, but URL shorteners usually 
-  // have the redirect at the root level (e.g., domain.com/xyz).
-  // For now, we will register it here, but we might need to adjust the prefix later.
-  fastify.get('/redirect/:shortCode', controller.redirectUrl);
+  // Note: Redirect endpoint (GET /:shortCode) will be registered at root level in app.ts
+};
+
+export const redirectRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => {
+  const repository = new UrlRepository(prisma);
+  const service = new UrlService(repository);
+  const controller = new UrlController(service);
+
+  fastify.get('/:shortCode', controller.redirectUrl);
 };
