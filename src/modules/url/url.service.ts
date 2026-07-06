@@ -1,5 +1,5 @@
 import { UrlRepository } from './url.repository';
-import { CreateUrlDTO, GetUrlsQueryDTO } from './url.types';
+import { CreateUrlDTO, GetUrlsQueryDTO, UpdateUrlDTO } from './url.types';
 
 export class UrlService {
   constructor(private readonly urlRepository: UrlRepository) {}
@@ -66,11 +66,53 @@ export class UrlService {
     return url;
   }
 
-  async getUrlByShortCode() {}
+  async getUrlByShortCode(shortCode: string) {
+    const url = await this.urlRepository.findByShortCode(shortCode);
+    if (!url || url.isDeleted) {
+      throw new Error('URL tidak ditemukan');
+    }
+    
+    await this.urlRepository.incrementClickCount(url.id);
+    return url.originalUrl;
+  }
 
-  async updateUrl() {}
+  async updateUrl(id: string, data: UpdateUrlDTO) {
+    const existingUrl = await this.urlRepository.findById(id);
+    if (!existingUrl) {
+      throw new Error('Data URL tidak ditemukan');
+    }
 
-  async deleteUrl() {}
+    const updateData: Partial<{ originalUrl: string; shortCode: string }> = {};
 
-  async getUrlStats() {}
+    if (data.originalUrl) {
+      updateData.originalUrl = data.originalUrl;
+    }
+
+    if (data.customAlias && data.customAlias !== existingUrl.shortCode) {
+      const aliasExists = await this.urlRepository.findByShortCode(data.customAlias);
+      if (aliasExists) {
+        throw new Error('Custom alias sudah digunakan');
+      }
+      updateData.shortCode = data.customAlias;
+    }
+
+    return this.urlRepository.update(id, updateData);
+  }
+
+  async deleteUrl(id: string) {
+    const existingUrl = await this.urlRepository.findById(id);
+    if (!existingUrl) {
+      throw new Error('Data URL tidak ditemukan');
+    }
+
+    await this.urlRepository.softDelete(id);
+  }
+
+  async getUrlStats(id: string) {
+    const stats = await this.urlRepository.getStats(id);
+    if (!stats) {
+      throw new Error('Data URL tidak ditemukan');
+    }
+    return stats;
+  }
 }
